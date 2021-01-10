@@ -5,19 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char *user_input;
-
 //
-// parser.c
+// tokenize.c
 //
-
-typedef struct Token Token;
 
 typedef enum {
     TK_RESERVED, // Symbol
-    TK_NUM,      // Integer
+    TK_IDENT,    // Indentifier
+    TK_NUM,      // Integer token
     TK_EOF,      // Token that means end of input
 } TokenKind;
+
+typedef struct Token Token;
 
 struct Token {
     TokenKind kind; // Type of token
@@ -27,11 +26,10 @@ struct Token {
     int len;        // Token length
 };
 
-extern Token *token; // Token that the process is focusing.
-
 void error_at(char *loc, char *fmt, ...);
 
 bool consume(char *op);
+Token *consume_ident();
 void expect(char *op);
 int expect_number();
 
@@ -41,8 +39,11 @@ bool startswith(char *p, char *q);
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 Token *tokenize();
 
+extern char *user_input;
+extern Token *token;
+
 //
-// codegen.c
+// parse.c
 //
 
 
@@ -50,15 +51,17 @@ typedef struct Node Node;
 
 // Type of AST nodes
 typedef enum {
-    ND_ADD, // `+`
-    ND_SUB, // `-`
-    ND_MUL, // `*`
-    ND_DIV, // `/`
-    ND_EQ,  // `==`
-    ND_NE, // `!=`
-    ND_LT, // `<`
-    ND_LE, // `<=`
-    ND_NUM, // Int
+    ND_ADD,    // `+`
+    ND_SUB,    // `-`
+    ND_MUL,    // `*`
+    ND_DIV,    // `/`
+    ND_EQ,     // `==`
+    ND_NE,     // `!=`
+    ND_LT,     // `<`
+    ND_LE,     // `<=`
+    ND_ASSIGN, // `=`
+    ND_LVAR,   // Local variable
+    ND_NUM,    // Int
 } NodeKind;
 
 struct Node {
@@ -66,16 +69,25 @@ struct Node {
     Node *lhs;     // Left-Hand side
     Node *rhs;     // Right-Hand side
     int val;       // Use this value if `kind` is ND_NUM.
+    int offset;    // Use this value if `kind` is ND_LVAR.
 };
 
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_node_num(int val);
 
+void *program();
+Node *stmt();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
 Node *mul();
 Node *unary();
 Node *primary();
+
+//
+// codegen.c
+//
+
 void gen(Node *node);

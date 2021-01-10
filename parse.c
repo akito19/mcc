@@ -1,106 +1,126 @@
 #include "mcc.h"
 
-Token *token;
-char *user_input;
-
-// Function for error to report the location of error occurrence.
-void error_at(char *loc, char *fmt, ...) {
-    // va_list: variadic argument list
-    va_list ap;
-    va_start(ap, fmt);
-
-    int pos = loc - user_input;
-    fprintf(stderr, "%s\n", user_input);
-    fprintf(stderr, "%*s", pos, " "); // Output space(s) corresponding to the number of `pos`
-    fprintf(stderr, "^ ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
+Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = kind;
+    node->lhs  = lhs;
+    node->rhs  = rhs;
+    return node;
 }
 
-
-// If the next token is expected symbol, succeed the token and return True,
-// Otherwise, return False.
-bool consume(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-        return false;
-    token = token->next;
-    return true;
+Node *new_node_num(int val) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_NUM;
+    node->val  = val;
+    return node;
 }
 
-// If the next token is expected symbol, succeed the token.
-// Otherwise, report an error.
-void expect(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-        error_at(token->str, "Expected \"%s\"\n", op);
-    token = token->next;
+Node *code[100];
+
+void *program() {
+    int i = 0;
+    while (!at_eof())
+        code[i++] = stmt();
+    code[i] = NULL;
 }
 
-// If the next token is Integer, succeed the token and return its the value.
-// Otherwise, report an error.
-int expect_number() {
-    if (token->kind != TK_NUM)
-        error_at(token->str, "It's not integer.\n");
-    int val = token->val;
-    token = token->next;
-    return val;
+Node *stmt() {
+    Node *node = expr();
+    expect(";");
+    return node;
 }
 
-bool at_eof() {
-    return token->kind == TK_EOF;
+Node *expr() {
+    return assign();
 }
 
-bool startswith(char *p, char *q) {
-    return memcmp(p, q, strlen(q)) == 0;
+Node *assign() {
+    Node *node = equality();
+
+    for (;;) {
+        if (consume("="))
+            node = new_node(ND_ASSIGN, node, assign());
+        return node;
+    }
 }
 
-// Generate the new token and connect with `cur`
-Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
-    // `calloc` means zero-clear memory for allocated memory.
-    Token *tok = calloc(1, sizeof(Token));
-    tok->kind = kind;
-    tok->str = str;
-    tok->len = len;
-    cur->next = tok;
-    return tok;
+Node *equality() {
+    Node *node = relational();
+
+    for (;;) {
+        if (consume("=="))
+            node = new_node(ND_EQ, node, relational());
+        else if (consume("!="))
+            node = new_node(ND_NE, node, relational());
+        else
+            return node;
+    }
 }
 
-// Tokenize `user_input`, and return new tokens.
-Token *tokenize() {
-    char *p = user_input;
-    Token head;
-    head.next = NULL;
-    Token *cur = &head;
+Node *relational() {
+    Node *node = add();
 
-    while (*p) {
-        // Skip spaces
-        if (isspace(*p)) {
-            p++;
-            continue;
-        }
-        if (startswith(p, "==")
-                || startswith(p, "!=")
-                || startswith(p, "<=")
-                || startswith(p, ">=")) {
-            cur = new_token(TK_RESERVED, cur, p, 2);
-            p += 2;
-            continue;
-        }
-        if (strchr("+-*/()<>", *p)) {
-            cur = new_token(TK_RESERVED, cur, p++, 1);
-            continue;
-        }
-        if (isdigit(*p)) {
-            cur = new_token(TK_NUM, cur, p, 0);
-            char *q = p;
-            cur->val = strtol(p, &p, 10);
-            cur->len = p - q;
-            continue;
-        }
+    for (;;) {
+        if (consume("<"))
+            node = new_node(ND_LT, node, add());
+        else if (consume("<="))
+            node = new_node(ND_LE, node, add());
+        else if (consume(">"))
+            node = new_node(ND_LT, add(), node);
+        else if (consume(">="))
+            node = new_node(ND_LE, add(), node);
+        else
+            return node;
+    }
+}
 
-        error_at(p, "Failed to tokenize.\n");
+Node *add() {
+    Node *node = mul();
+
+    for (;;) {
+        if (consume("+"))
+            node = new_node(ND_ADD, node, mul());
+        else if (consume("-"))
+            node = new_node(ND_SUB, node, mul());
+        else
+            return node;
+    }
+}
+
+Node *mul() {
+    Node *node = unary();
+
+    for (;;) {
+        if (consume("*"))
+            node = new_node(ND_MUL, node, unary());
+        else if (consume("/"))
+            node = new_node(ND_DIV, node, unary());
+        else
+            return node;
+    }
+}
+
+Node *unary() {
+    if (consume("+"))
+        return unary();
+    if (consume("-"))
+        return new_node(ND_SUB, new_node_num(0), unary());
+    return primary();
+}
+
+Node *primary() {
+    if (consume("(")) {
+        Node *node = expr();
+        expect(")");
+        return node;
+    }
+    Token *tok = consume_ident();
+    if (tok) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_LVAR;
+        node->offset = (tok->str[0] - 'a' + 1) * 8;
+        return node;
     }
 
-    new_token(TK_EOF, cur, p, 0);
-    return head.next;
+    return new_node_num(expect_number());
 }
