@@ -3,6 +3,15 @@
 Token *token;
 char *user_input;
 
+// Reports an error and exit.
+void error(char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
 // Function for error to report the location of error occurrence.
 void error_at(char *loc, char *fmt, ...) {
     // va_list: variadic argument list
@@ -17,7 +26,6 @@ void error_at(char *loc, char *fmt, ...) {
     fprintf(stderr, "\n");
     exit(1);
 }
-
 
 // If the next token is expected symbol, succeed the token and return True,
 // Otherwise, return False.
@@ -94,7 +102,7 @@ Token *tokenize() {
             p += 2;
             continue;
         }
-        if (strchr("+-*/()<>", *p)) {
+        if (strchr("+-*/()<>;=", *p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }

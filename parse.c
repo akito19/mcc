@@ -17,7 +17,7 @@ Node *new_node_num(int val) {
 
 Node *code[100];
 
-void *program() {
+void program() {
     int i = 0;
     while (!at_eof())
         code[i++] = stmt();
@@ -36,12 +36,9 @@ Node *expr() {
 
 Node *assign() {
     Node *node = equality();
-
-    for (;;) {
-        if (consume("="))
-            node = new_node(ND_ASSIGN, node, assign());
-        return node;
-    }
+    if (consume("="))
+        node = new_node(ND_ASSIGN, node, assign());
+    return node;
 }
 
 Node *equality() {

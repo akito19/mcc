@@ -26,6 +26,7 @@ struct Token {
     int len;        // Token length
 };
 
+void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 
 bool consume(char *op);
@@ -72,10 +73,12 @@ struct Node {
     int offset;    // Use this value if `kind` is ND_LVAR.
 };
 
+extern Node *code[100];
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_node_num(int val);
 
-void *program();
+void program();
 Node *stmt();
 Node *expr();
 Node *assign();
