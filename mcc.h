@@ -13,6 +13,7 @@ typedef enum {
     TK_RESERVED, // Symbol
     TK_IDENT,    // Indentifier
     TK_NUM,      // Integer token
+    TK_RETURN,   // Return value
     TK_EOF,      // Token that means end of input
 } TokenKind;
 
@@ -47,8 +48,19 @@ extern Token *token;
 // parse.c
 //
 
-
 typedef struct Node Node;
+typedef struct LVar LVar;
+
+struct LVar {
+    LVar *next; // Next variable or NULL
+    char *name; // The name of the variable
+    int len;    // The length of the variable
+    int offset; // The offset from the RPB register
+};
+
+LVar *locals;
+
+// extern LVar *locals;
 
 // Type of AST nodes
 typedef enum {
@@ -62,6 +74,7 @@ typedef enum {
     ND_LE,     // `<=`
     ND_ASSIGN, // `=`
     ND_LVAR,   // Local variable
+    ND_RETURN, // `return`
     ND_NUM,    // Int
 } NodeKind;
 

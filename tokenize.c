@@ -70,6 +70,14 @@ bool startswith(char *p, char *q) {
     return memcmp(p, q, strlen(q)) == 0;
 }
 
+bool is_alphabet(char c) {
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+}
+
+bool is_alnum(char c) {
+    return is_alphabet(c) || ('0' <= c && c <= '9');
+}
+
 // Generate the new token and connect with `cur`
 Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
     // `calloc` means zero-clear memory for allocated memory.
@@ -106,9 +114,16 @@ Token *tokenize() {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
-        if ('a' <= *p && *p <= 'z') {
-            cur = new_token(TK_IDENT, cur, p++, 1);
-            cur->len = 1;
+        // if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+        //     cur = new_token(TK_RETURN, cur, p, 6);
+        //     p += 6;
+        //     continue;
+        // }
+        if (is_alphabet(*p)) {
+            char *q = p++;
+            while (is_alnum(*p))
+                p++;
+            cur = new_token(TK_IDENT, cur, q, p - q);
             continue;
         }
         if (isdigit(*p)) {

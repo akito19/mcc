@@ -1,5 +1,31 @@
 #include "mcc.h"
 
+LVar *locals;
+
+// Find the variable by using its name.
+// If it finds, return the variable, otherwise return NULL.
+LVar *find_lvar(Token *tok) {
+    for (LVar *var = locals; var; var = var->next)
+        if (var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+            return var;
+    return NULL;
+}
+
+//
+// Syntax
+//
+// program    = stmt*
+// stmt       = expr ";"
+//            | "return" expr ";"
+// expr       = assign
+// assign     = equality ("=" assign)?
+// equality   = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add        = mul ("+" mul | "-" mul)*
+// mul        = unary ("*" unary | "/" unary)*
+// unary      = ("+" | "-")? primary
+// primary    = num | ident | "(" expr ")"
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
@@ -18,7 +44,9 @@ Node *new_node_num(int val) {
 Node *code[100];
 
 void program() {
+    locals = NULL;
     int i = 0;
+
     while (!at_eof())
         code[i++] = stmt();
     code[i] = NULL;
@@ -27,6 +55,21 @@ void program() {
 Node *stmt() {
     Node *node = expr();
     expect(";");
+
+    // if (consume("return")) {
+    //     node = calloc(1, sizeof(Node));
+    //     node->kind = ND_RETURN;
+    //     node->lhs = expr();
+    //     expect(";");
+    //     return node;
+    // }
+
+    // node = expr();
+    // expect(";");
+
+    // if (!consume(";"))
+    //     error_at(token->str, "The token is not `;`");
+
     return node;
 }
 
@@ -111,11 +154,26 @@ Node *primary() {
         expect(")");
         return node;
     }
+
     Token *tok = consume_ident();
     if (tok) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_LVAR;
-        node->offset = (tok->str[0] - 'a' + 1) * 8;
+
+        LVar *lvar = find_lvar(tok);
+        if (lvar) {
+            node->offset = lvar->offset;
+        } else {
+            lvar = calloc(1, sizeof(LVar));
+            node->offset = lvar->offset;
+            lvar->next = locals;
+            lvar->name = tok->str;
+            lvar->len = tok->len;
+
+            locals = lvar;
+            lvar->offset = locals->offset + 8;
+            node->offset = lvar->offset;
+        }
         return node;
     }
 
